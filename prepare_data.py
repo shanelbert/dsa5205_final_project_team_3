@@ -30,16 +30,18 @@ def clean_prices(frame: pd.DataFrame, calendar: pd.DatetimeIndex) -> pd.DataFram
 def make_targets(
     symbol: str, frame: pd.DataFrame, calendar: pd.DatetimeIndex
 ) -> pd.DataFrame:
-    next_date = pd.Series(calendar, index=calendar).shift(-1)
-    next_prices = frame[["Open", "Close"]].reindex(calendar).shift(-1)
+    dates = pd.Series(calendar, index=calendar)
+    prices = frame[["Open", "Close", "Adj Close"]].reindex(calendar)
+    # Open * Adj Close / Close is the dividend-adjusted open (as with auto_adjust=True).
+    adj_open = prices["Open"] * prices["Adj Close"] / prices["Close"]
     targets = pd.DataFrame(
         {
             "Ticker": symbol,
-            "entry_date": next_date,
-            "exit_date": next_date,
-            "entry_open": next_prices["Open"],
-            "exit_close": next_prices["Close"],
-            "target_return": next_prices["Close"] / next_prices["Open"] - 1,
+            "entry_date": dates.shift(-1),
+            "exit_date": dates.shift(-2),
+            "entry_open": prices["Open"].shift(-1),
+            "exit_open": prices["Open"].shift(-2),
+            "target_return": adj_open.shift(-2) / adj_open.shift(-1) - 1,
         },
         index=calendar,
     )

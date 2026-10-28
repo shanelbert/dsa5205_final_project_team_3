@@ -5,20 +5,20 @@ This repository provides the data prepared for our team's modelling and backtest
 The downloaded snapshot covers **2011-01-03 to 2025-12-31**, at daily frequency. Prices are in USD, and dates refer to New York trading days.
 
 - **For modelling:** use `train.csv`, `validation.csv`, and `test.csv` in `data/prepared/`.
-- **For backtesting:** use `stock_targets.csv` for the next-day trade prices and `clean_prices.csv` for the full price history and SPY benchmark.
+- **For backtesting:** use `stock_targets.csv` for the entry and exit prices and `clean_prices.csv` for the full price history and SPY benchmark.
 
 ## Files
 
 | File | What it contains or does |
 |---|---|
 | [`download_data.py`](download_data.py) | Downloads daily prices, volume, dividends, and stock splits for all five assets using yfinance. |
-| [`prepare_data.py`](prepare_data.py) | Cleans the downloaded records and creates the next-day open-to-close return labels. |
+| [`prepare_data.py`](prepare_data.py) | Cleans the downloaded records and creates the open-to-open return labels. |
 | [`build_features.py`](build_features.py) | Builds seven historical features for each stock and creates the chronological data splits. |
 | [`requirements.txt`](requirements.txt) | Package versions used by these scripts. |
 | `data/{TICKER}_2011_2025.csv` | The downloaded snapshot, before project cleaning: one CSV per asset, with 3,772 rows each. |
 | [`data/prepared/clean_prices.csv`](data/prepared/clean_prices.csv) | Cleaned daily prices and corporate actions for all five assets: 18,860 rows. |
-| [`data/prepared/stock_targets.csv`](data/prepared/stock_targets.csv) | Next-day entry prices, exit prices, and return labels for the four stocks: 15,084 rows. |
-| [`data/prepared/model_data.csv`](data/prepared/model_data.csv) | Features joined with labels and split assignments: 15,004 rows, including 8 rows marked `excluded`. |
+| [`data/prepared/stock_targets.csv`](data/prepared/stock_targets.csv) | Entry prices, exit prices, and return labels for the four stocks: 15,080 rows. |
+| [`data/prepared/model_data.csv`](data/prepared/model_data.csv) | Features joined with labels and split assignments: 15,000 rows, including 16 rows marked `excluded`. |
 | `data/prepared/train.csv`, `validation.csv`, `test.csv` | The ready-to-use modelling subsets, described under Time splits below. |
 
 Stock datasets use a long format: each row represents one **`(Date, Ticker)`** observation. The files combine all four stocks, so they can also be filtered by `Ticker` for separate stock models.
@@ -29,32 +29,32 @@ For a row dated `t`:
 
 1. Use information available after the close of trading day `t` to generate a signal.
 2. Enter at the open of the next trading day, `t+1`.
-3. Exit at the close of that same day, `t+1`.
+3. Hold overnight and exit at the open of the following trading day, `t+2`.
 
 The prediction target is:
 
 ```text
-target_return[t] = Close[t+1] / Open[t+1] - 1
+target_return[t] = AdjOpen[t+2] / AdjOpen[t+1] - 1,   where AdjOpen = Open * Adj Close / Close
 ```
 
-Returns are decimals: `0.01` means a 1% return. This is the stock's gross long return before transaction costs or any portfolio position rule. `t+1` means the next trading day, including across weekends and holidays.
+Returns are decimals: `0.01` means a 1% return. This is the stock's gross long return, including dividends, before transaction costs or any portfolio position rule. `t+1` and `t+2` are the next two trading days, including across weekends and holidays.
 
 | Column | Meaning |
 |---|---|
 | `Date` | The signal date in target and modelling tables. In price tables, it is the date of the price record. |
 | `Ticker` | The asset identifier. |
-| `entry_date` | The next trading day; entry takes place at its open. |
-| `exit_date` | The same day as `entry_date`; exit takes place at its close. |
-| `entry_open` | The next-day `Open`, available in `stock_targets.csv`. |
-| `exit_close` | The next-day `Close`, available in `stock_targets.csv`. |
-| `target_return` | The return calculated from those entry and exit prices. |
+| `entry_date` | The next trading day, `t+1`; entry takes place at its open. |
+| `exit_date` | The trading day after `entry_date`, `t+2`; exit takes place at its open. |
+| `entry_open` | The `Open` on `entry_date`, available in `stock_targets.csv`. |
+| `exit_open` | The `Open` on `exit_date`, available in `stock_targets.csv`. |
+| `target_return` | The return from `entry_open` to `exit_open`, plus any dividend whose ex-dividend date is `exit_date`. On those days (167 of the 15,080 targets) it is slightly higher than `exit_open / entry_open - 1`. |
 | `split` | `train`, `validation`, `test`, or `excluded`. Present in the modelling tables. |
 
-For backtesting, join predictions to `stock_targets.csv` on **`Date` and `Ticker`**. Execute on `entry_date` and `exit_date`; `Date` itself is the earlier signal date. Use SPY's `Adj Close` from `clean_prices.csv` for the dividend-inclusive buy-and-hold benchmark over the corresponding evaluation dates.
+For backtesting, join predictions to `stock_targets.csv` on **`Date` and `Ticker`**. Execute on `entry_date` and `exit_date`; `Date` itself is the earlier signal date. Holdings are back to back: signal `t` holds from the open of `t+1` to the open of `t+2`, and signal `t+1` takes over at that same open. A stock held for both signals is not sold and bought again; only the change in its weight is traded. For a SPY buy-and-hold benchmark over the same holding periods, compute SPY's open-to-open returns the same way, from `Open * Adj Close / Close` in `clean_prices.csv`.
 
 ## Price fields and cleaning
 
-The download uses `auto_adjust=False`. Yahoo's `Open`, `High`, `Low`, and `Close` already account for stock splits. `Adj Close` additionally accounts for dividends. Historical return and moving-average features use `Adj Close`; the intraday label uses `Close / Open`, for which a common same-day adjustment factor cancels. See the [yfinance price-adjustment documentation](https://ranaroussi.github.io/yfinance/advanced/price_adjustment.html).
+The download uses `auto_adjust=False`. Yahoo's `Open`, `High`, `Low`, and `Close` already account for stock splits. `Adj Close` additionally accounts for dividends. Historical return and moving-average features use `Adj Close`. The label needs opens that account for dividends too: Yahoo applies one adjustment factor to all prices of a day, so `Open * Adj Close / Close` is the dividend-adjusted open (the same price yfinance returns with `auto_adjust=True`). See the [yfinance price-adjustment documentation](https://ranaroussi.github.io/yfinance/advanced/price_adjustment.html).
 
 - `Volume` is the share volume returned by Yahoo.
 - `Dividends` records the supplier's dividend amount per share on the ex-dividend date, using its historical split-adjusted units; zero means no dividend event.
@@ -84,11 +84,11 @@ The configured periods are **2011-2018 for training**, **2019-2021 for validatio
 
 | File | Signal date range | Rows | Rows per stock |
 |---|---|---:|---:|
-| [`train.csv`](data/prepared/train.csv) | 2011-02-01 to 2018-12-28 | 7,964 | 1,991 |
-| [`validation.csv`](data/prepared/validation.csv) | 2019-01-02 to 2021-12-30 | 3,024 | 756 |
-| [`test.csv`](data/prepared/test.csv) | 2022-01-03 to 2025-12-30 | 4,008 | 1,002 |
+| [`train.csv`](data/prepared/train.csv) | 2011-02-01 to 2018-12-27 | 7,960 | 1,990 |
+| [`validation.csv`](data/prepared/validation.csv) | 2019-01-02 to 2021-12-29 | 3,020 | 755 |
+| [`test.csv`](data/prepared/test.csv) | 2022-01-03 to 2025-12-29 | 4,004 | 1,001 |
 
-The first 20 trading days per stock are used for feature warm-up, and the final source date has no next-day label. A sample enters a split only if its signal date belongs to that period and its label is realized by the period end. The 8 signals dated `2018-12-31` or `2021-12-31` are therefore marked `excluded` in `model_data.csv` and omitted from the three split files.
+The first 20 trading days per stock are used for feature warm-up, and the final two source dates have no label, because their exit open falls after the snapshot. A sample enters a split only if its signal date belongs to that period and its label is realized by the period end. The 16 signals dated on the last two trading days of 2018 and 2021 (`2018-12-28`, `2018-12-31`, `2021-12-30`, `2021-12-31`) are therefore marked `excluded` in `model_data.csv` and omitted from the three split files.
 
 ## Using the prepared data
 
@@ -112,7 +112,7 @@ X_train = train[FEATURE_COLUMNS]
 y_train = train["target_return"]
 ```
 
-Load the validation and test files in the same way. Use validation for model selection and test for the final evaluation. Fit preprocessing on the training observations. For rolling refits on signal date `t`, only historical samples with `exit_date <= t` have an observed label.
+Load the validation and test files in the same way. Use validation for model selection and test for the final evaluation. Fit preprocessing on the training observations. For rolling refits on signal date `t`, only historical samples with `exit_date <= t` have an observed label; the label of signal `t-1` is not known until the open of `t+1`.
 
 ## Rebuilding the data
 
