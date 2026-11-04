@@ -100,7 +100,7 @@ period and kept fixed for the 2018–2025 test period.
 | `CHOSEN` cell | Each model's $L$ and $R$, set from the validation table |
 | Test table (displayed) | $R^2$ of each model at its chosen setting over the test period. |
 | $R^2$-by-year table (displayed) | Test-period $R^2$ against zero by calendar year |
-| `figures/test_r2_by_year.png` | Bar chart of the $R^2$-by-year table |
+| `results/test_r2_by_year.png` | Bar chart of the $R^2$-by-year table |
 
 <br>
 
