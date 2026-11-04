@@ -14,8 +14,7 @@ This package contains the code for the Group 3 report for DSA5205 Project 2 (`Gr
 | `requirements.txt` | Pinned Python packages used in the scripts and notebook. |
 | `data/` | CSV files downloaded by running download_data.py |
 | `data/prepared/` | Outputs of prepare_data.py |
-| `figures/` | Figures written by `modelling_validation.ipynb` |
-| `results/` | Trading parameter selection, performance tables, portfolio weights, daily returns, and cumulative wealth plots |
+| `results/` | Trading parameter selection, performance tables, portfolio weights, daily returns, cumulative wealth plots, $R^2$-by-year plot |
 
 The package was tested on Windows 11 with Conda 26.5.3 and Python 3.12, by running the commands below in a new environment that contained only the packages in `requirements.txt`. The notebook was also run in Visual Studio Code 1.144.0.
 
