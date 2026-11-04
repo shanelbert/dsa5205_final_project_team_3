@@ -7,11 +7,16 @@ This package contains the code for the Group 3 report for DSA5205 Project 2 (`Gr
 | `download_data.py` | Downloads the daily prices, volume, dividends, and splits of the five assets from Yahoo Finance into `data/` |
 | `prepare_data.py` | Cleans the downloaded prices and builds the open-to-open return labels |
 | `build_features.py` | Builds the seven features and the table used for modelling |
-| `main.ipynb` | Rolling estimation of the four models, validation, test evaluation and Figure 1 |
+| `main.ipynb` | Rolling estimation, model validation, forecast accuracy evaluation, forecast export, and trading evaluation |
 | `requirements.txt` | Pinned Python packages used in the scripts and notebook. |
 | `data/` | CSV files downloaded by running download_data.py |
 | `data/prepared/` | Outputs of prepare_data.py |
 | `figures/` | Figures written by `main.ipynb` |
+| `strategy.py` | Converts LASSO return forecasts into long-only portfolio weights |
+| `backtest.py` | Runs open-to-open backtests with transaction costs |
+| `evaluation.py` | Selects trading parameters and evaluates validation/test performance |
+| `README_TRADING.md` | Documents trading assumptions, parameter selection, and evaluation |
+| `results/` | Trading parameter selection, performance tables, portfolio weights, daily returns, and cumulative wealth plots |
 
 The package was tested on Windows 11 with Conda 26.5.3 and Python 3.12, by running the commands below in a new environment that contained only the packages in `requirements.txt`. The notebook was also run in Visual Studio Code 1.144.0.
 
@@ -58,6 +63,24 @@ Open `main.ipynb` in Visual Studio Code with the Jupyter and Python extensions (
 
 All model settings are in the `CONFIG` dictionary in the first code cell. No step is random (the cross-validation folds follow time order, and every estimator is deterministic), so no random seed is needed. All paths are relative to this folder.
 
+After the modelling and forecast accuracy evaluation, the notebook
+exports the selected LASSO forecasts to:
+
+`data/prepared/forecasts.csv`
+
+The notebook then runs `evaluation.py` to perform trading parameter
+selection and out-of-sample backtesting.
+
+The trading evaluation can also be rerun independently without
+retraining the models:
+
+```bash
+python evaluation.py
+```
+
+The trading parameters are selected using the 2012–2017 validation
+period and kept fixed for the 2018–2025 test period.
+
 ## 6. Expected outputs
 
 **Data scripts**
@@ -78,3 +101,17 @@ All model settings are in the `CONFIG` dictionary in the first code cell. No ste
 | Test table (displayed) | $R^2$ of each model at its chosen setting over the test period. | Table 6 |
 | $R^2$-by-year table (displayed) | Test-period $R^2$ against zero by calendar year | - |
 | `figures/test_r2_by_year.png` | Bar chart of the $R^2$-by-year table | Figure 1 |
+
+**Trading and evaluation**
+
+| Output | Contents |
+|---|---|
+| `data/prepared/forecasts.csv` | Selected LASSO forecasts used for trading |
+| `results/validation_grid.csv` | Validation results for 12 trading parameter combinations |
+| `results/performance.csv` | Annualized return, volatility, Sharpe ratio, maximum drawdown, and cumulative return |
+| `results/validation_daily.csv` | Validation-period daily backtest results |
+| `results/test_daily.csv` | Test-period daily backtest results |
+| `results/validation_weights.csv` | Validation-period portfolio weights |
+| `results/test_weights.csv` | Test-period portfolio weights |
+| `results/validation_cumulative.png` | Validation cumulative wealth comparison with SPY |
+| `results/test_cumulative.png` | Test cumulative wealth comparison with SPY |
