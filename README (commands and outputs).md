@@ -99,7 +99,6 @@ period and kept fixed for the 2018–2025 test period.
 | Validation table (displayed) | $R^2$ against zero and against the historical mean for every model, window length $L$, and refit interval $R$ (24 rows) over the validation period. |
 | `CHOSEN` cell | Each model's $L$ and $R$, set from the validation table |
 | Test table (displayed) | $R^2$ of each model at its chosen setting over the test period. |
-| $R^2$-by-year table (displayed) | Test-period $R^2$ against zero by calendar year |
 | `results/test_r2_by_year.png` | Bar chart of the $R^2$-by-year table |
 
 <br>
